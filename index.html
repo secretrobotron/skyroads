@@ -1,0 +1,223 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <title>SkyRoads</title>
+    <script type="text/json" id="level1-data">
+      [1,1,1,0,0,0,0,1,1,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,1,1,0,0,0,0,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,0,0,0,0,0,1,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,1]
+    </script>
+    <script src="external/CubicVR.js/CubicVR.js" type="text/javascript"></script>
+    <script src="external/CubicVR.js/lib/ammo.js" type="text/javascript"></script>
+    <script type="text/json" src="assets/objects/material-metalic.json" data-cubicvr="material" id="material-metalic"></script>
+    <script type="text/json" src="assets/objects/material-stone.json" data-cubicvr="material" id="material-stone"></script>
+    <script type="text/json" src="assets/objects/uv-metalic.json" data-cubicvr="uvmapper" id="uv-metalic"></script>
+    <script type="text/json" src="assets/objects/uv-stone.json" data-cubicvr="uvmapper" id="uv-stone"></script>
+    <script type="text/json" src="assets/objects/light-simple-point.json" data-cubicvr="light" id="light-simple-point"></script>
+    <script type='text/javascript'>
+      (function() {
+      var vec3 = CubicVR.vec3,
+          kbd = CubicVR.enums.keyboard;
+
+      var Player = function( options ) {
+        options = options || {};
+
+        var graphicsMesh = CubicVR.loadMesh("assets/models/ship-main.xml", "assets/models/"),
+            graphicsObject = new CubicVR.SceneObject( graphicsMesh );
+        
+        var mesh = new CubicVR.Mesh();
+        var collisionMap = new CubicVR.CollisionMap({
+          type: CubicVR.enums.collision.shape.CAPSULE,
+          radius: .1,
+          height: .2,
+          restitution:0,
+          friction:2
+        });
+        var sceneObject = new CubicVR.SceneObject( mesh );
+        sceneObject.position = options.position || [ 0, 0, 0 ];
+        var rigidBody = new CubicVR.RigidBody( sceneObject, {
+          type: CubicVR.enums.physics.body.DYNAMIC,
+          mass: 0.1,
+          collision: collisionMap 
+        });
+
+        rigidBody.setAngularFactor(0);
+
+        this.canJump = false;
+ 
+        Object.defineProperty( this, "mesh", { get: function() { return mesh; } } );
+        Object.defineProperty( this, "rigidBody", { get: function() { return rigidBody; } } );
+        Object.defineProperty( this, "sceneObject", { get: function() { return sceneObject; } } );
+        Object.defineProperty( this, "graphicsObject", { get: function() { return graphicsObject; } } );
+
+        var that = this;
+        this.jump = function() {
+          if ( that.canJump ) {
+            var linV = rigidBody.getLinearVelocity();
+            linV[ 1 ] = 1.0; //Math.min( .7, linV[ 1 ] + 0.7 );
+            rigidBody.setLinearVelocity( linV );
+            that.canJump = false;
+          } //if
+        }; //jump
+
+        this.prepare = function( scene, physics, mvc ) {
+          scene.bindSceneObject( sceneObject );
+          physics.bindRigidBody( rigidBody );
+          sceneObject.addEvent({
+            id: CubicVR.enums.event.TICK,
+            interval: 1.0/30.0,
+            properties: {
+            },
+            action: function( event ) {
+              var linV = rigidBody.getLinearVelocity();
+              if ( mvc.isKeyPressed( kbd.KEY_D ) ) {
+                linV[ 0 ] = Math.min( 5.0, linV[ 0 ] + 1.0 );
+              }
+              if ( mvc.isKeyPressed( kbd.KEY_A ) ) {
+                linV[ 0 ] = Math.max( -10.0, linV[ 0 ] - 1.6 );
+              }
+              if ( mvc.isKeyPressed( kbd.KEY_W ) ) {
+                linV[ 2 ] = Math.min( 1.0, linV[ 2 ] - 0.15 );
+              }
+              linV[ 0 ] -= linV[ 0 ] *.2;
+              rigidBody.setLinearVelocity( linV );
+            }
+          });
+          graphicsObject.scale = [ 0.05, 0.05, 0.05 ];
+          scene.bindSceneObject( graphicsObject );
+        }; //prepare
+
+        this.update = function() {
+          graphicsObject.position = sceneObject.position;
+        }; //update
+
+        if ( options.physics && options.scene && options.mvc ) {
+          that.prepare( options.scene, options.physics, options.mvc );
+        }
+      }; //Player
+
+      var Platform = function( options ) {
+        options = options || {};
+        Object.defineProperty( this, "mesh", { get: function() { return mesh; } } );
+      }; //Platform
+
+      document.addEventListener( "DOMContentLoaded", function( e ) {
+        var gl = CubicVR.init();
+        var canvas = CubicVR.getCanvas();
+        if (!gl) {
+          alert("Sorry, no WebGL support.");
+          return;
+        } //if
+
+        var scene = new CubicVR.Scene(canvas.width, canvas.height, 80),
+            physics = new CubicVR.ScenePhysics(),
+            mvc = new CubicVR.MouseViewController(canvas, scene.camera);
+
+        scene.bindLight( new CubicVR.Light({
+          type: CubicVR.enums.light.type.AREA,
+          intensity: 0.9,
+          mapRes: 2048,  // 4096 ? 8192 ? ;)
+          areaCeiling: 40,
+          areaFloor: -40,
+          areaAxis: [ -2, -2 ], // specified in degrees east/west north/south
+          distance: 60
+        }));
+
+        scene.setSkyBox( new CubicVR.SkyBox( { texture: "assets/images/space_skybox.jpg" } ) );
+
+        var light = new CubicVR.Light( "#light-simple-point" );
+        scene.bindLight(light);
+
+        var levelData = JSON.parse( document.getElementById( 'level1-data' ).text );
+        var levelMesh = new CubicVR.Mesh();
+        for ( var i=0; i<5; ++i ) {
+          for ( var o=0; o<50; ++o ) {
+            if ( levelData[ i*50 + o ] ) {
+              var platformMesh = CubicVR.primitives.box({
+                size: [ 1, 1, 1 ],
+                uvmapper: "#uv-stone",
+                material: "#material-stone"
+              });
+              var transform = new CubicVR.Transform();
+              transform.translate( [ i, 0, -o ] );
+              levelMesh.booleanAdd( platformMesh, transform );
+            } //if
+          } //for o
+        } //for i
+        levelMesh.triangulateQuads().calcNormals().compile();
+        var levelObject = new CubicVR.SceneObject( levelMesh );
+        levelObject.position[ 1 ] = -1;
+        var rigidBody = new CubicVR.RigidBody( levelObject, {
+          type: CubicVR.enums.physics.body.GHOST,
+          blocker: true,
+          collision: new CubicVR.CollisionMap({
+            type: CubicVR.enums.collision.shape.MESH,
+            mesh: levelMesh,
+          })
+        });
+        physics.bindRigidBody( rigidBody );
+        scene.bindSceneObject( levelObject );
+        levelObject.addEvent({
+          id: CubicVR.enums.event.CONTACT_GHOST,
+          properties: {
+          },
+          action: function( event ) {
+            var properties = event.getEventProperties(),
+                contacts = properties.contacts;
+            player.canJump = true;
+          }
+        }); //addEvent
+
+        var player = new Player({
+          position: [ 0, 0, 0 ],
+          scene: scene,
+          physics: physics,
+          mvc: mvc
+        });
+        mvc.setEvents({
+          keyDown: function( ctx, mpos, keyCode, keyState ) {
+            if ( keyCode === kbd.SPACE ) {
+              player.jump();
+            } //if
+          } //keyDown
+        }); //setEvents
+
+        scene.camera.position = [ 0, .75, 1 ];
+        scene.camera.target = [ 0, 0, 0 ];
+        physics.setGravity( [ 0, -1, 0 ] );
+
+        CubicVR.addResizeable(scene);
+
+        CubicVR.MainLoop(function(timer, gl) {
+          var lastSeconds = timer.getLastUpdateSeconds(),
+              seconds = timer.getSeconds();
+          physics.stepSimulation( lastSeconds );
+          physics.triggerEvents();
+          scene.runEvents( seconds );
+          var playerPos = player.sceneObject.position;
+          scene.camera.position = [
+            playerPos[ 0 ],
+            .5,
+            playerPos[ 2 ] + 1
+          ];
+
+          if ( playerPos[ 1 ] < -2 ) {
+            player.rigidBody.setPosition( [ 0, 0, 0 ] ); 
+            player.rigidBody.setLinearVelocity( [ 0, 0, 0] );
+          }
+
+          player.update();
+          light.position = player.sceneObject.position;
+          scene.camera.target = [
+            playerPos[ 0 ],
+            0,
+            playerPos[ 2 ]
+          ];
+          scene.updateShadows();
+          scene.render();
+        });
+      }, false );
+      })();
+    </script>
+  </head>
+  <body>
+  </body>
+</html>

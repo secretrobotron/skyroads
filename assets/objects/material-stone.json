@@ -1,0 +1,10 @@
+{
+  "color": [ 0.6, 0.6, 0.6 ],
+  "specular": [ 0.3, 0.3, 0.3 ],
+  "textures": {
+    "color": "assets/images/2282-diffuse.jpg",
+    "normal": "assets/images/2282-normal.jpg",
+    "bump": "assets/images/2282-bump.jpg"
+  }
+}
+

@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <title>SkyRoads Editor</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+      canvas: {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script>
+      document.addEventListener( 'DOMContentLoaded', function( e ) {
+        var canvas = document.getElementById( 'editor-canvas' ),
+            ctx = canvas.getContext( '2d' );
+        canvas.width = 1000;
+        canvas.height = 100;
+        ctx.fillStyle = "#C0C0C0";
+        ctx.fillRect( 0, 0, canvas.width, canvas.height );
+        ctx.scale( 20, 20 );
+
+        var level = [],
+            markValue = 0;
+
+        for ( var i=0; i<50*5; ++i ) {
+          level[ i ] = 0;
+        } 
+
+        function getPos( mouseX, mouseY ) {
+          var pos = [ Math.floor( (mouseX-1)/20 ), Math.floor( (mouseY-1)/20 ) ];
+          console.log( pos );
+          return pos;
+        } //getPos
+
+        function mark( mousePos ) {
+          ctx.fillRect( mousePos[ 0 ], mousePos[ 1 ], 1, 1 );
+          var arrPos = mousePos[ 1 ] * 50 + mousePos[ 0 ];
+          level[ arrPos ] = markValue;
+          console.log( arrPos );
+        }
+
+        function mouseUpHandler( e ) {
+          window.removeEventListener( 'mouseup', mouseUpHandler, false );
+          canvas.removeEventListener( 'mousemove', mouseMoveHandler, false );
+          canvas.addEventListener( 'mousedown', mouseDownHandler, false );
+        } //mouseUpHandler
+        function mouseDownHandler( e ) {
+          var mousePos = getPos( e.clientX, e.clientY );
+          if ( e.shiftKey ) {
+            ctx.fillStyle = "#C0C0C0";
+            markValue = 0;
+          }
+          else {
+            ctx.fillStyle = "#000000";
+            markValue = 1;
+         }
+          mark( mousePos );
+          canvas.removeEventListener( 'mousedown', mouseDownHandler, false );
+          canvas.addEventListener( 'mousemove', mouseMoveHandler, false );
+          window.addEventListener( 'mouseup', mouseUpHandler, false );
+        } //mouseDownHandler
+        function mouseMoveHandler( e ) {
+          mark( getPos( e.clientX, e.clientY ) );
+        } //mouseMoveHandler
+        canvas.addEventListener( 'mousedown', mouseDownHandler, false );
+
+
+        document.getElementById( 'submit' ).addEventListener( 'click', function( e ) {
+          document.getElementById( 'output' ).value = JSON.stringify( level );
+        }, false );
+      }, false );
+    </script>
+  </head>
+  <body>
+    <canvas id="editor-canvas" ></canvas>
+    <p><input id="output" type="text" /><input id="submit" type="button" value="Generate" /></p>
+  </body>
+</html>
