@@ -7,252 +7,35 @@
     </script>
     <script src="external/CubicVR.js" type="text/javascript"></script>
     <script src="external/ammo.js" type="text/javascript"></script>
+    <script src="external/dsp.js" type="text/javascript"></script>
+    <script src="external/beatdetektor.js" type="text/javascript"></script>
     <script type="text/json" src="assets/objects/material-metalic.json" data-cubicvr="material" id="material-metalic"></script>
     <script type="text/json" src="assets/objects/material-stone.json" data-cubicvr="material" id="material-stone"></script>
     <script type="text/json" src="assets/objects/uv-metalic.json" data-cubicvr="uvmapper" id="uv-metalic"></script>
     <script type="text/json" src="assets/objects/uv-stone.json" data-cubicvr="uvmapper" id="uv-stone"></script>
     <script type="text/json" src="assets/objects/light-simple-point.json" data-cubicvr="light" id="light-simple-point"></script>
-    <script type='text/javascript'>
-      (function() {
-      var vec3 = CubicVR.vec3,
-          kbd = CubicVR.enums.keyboard;
-
-      var Player = function( options ) {
-        options = options || {};
-
-        var graphicsMesh = CubicVR.loadMesh("assets/models/ship-main.xml", "assets/models/"),
-            sceneObject = new CubicVR.SceneObject( graphicsMesh );
-        
-        var mesh = new CubicVR.Mesh();
-        var collisionMap = new CubicVR.CollisionMap({
-            type: CubicVR.enums.collision.shape.BOX,    // seems to cause less random pop-up jumps
-            size: [ 0.4, 0.4, 0.9]
-        });
-      
-        var rigidBody = new CubicVR.RigidBody( sceneObject, {
-          type: CubicVR.enums.physics.body.DYNAMIC,
-          mass: 1,
-          collision: collisionMap,
-          resitution: 0.0
-        });
-
-        this.canJump = false;
- 
-        Object.defineProperty( this, "mesh", { get: function() { return mesh; } } );
-        Object.defineProperty( this, "rigidBody", { get: function() { return rigidBody; } } );
-        Object.defineProperty( this, "sceneObject", { get: function() { return sceneObject; } } );
-
-        var that = this;
-        this.jump = function() {
-          if ( that.canJump ) {
-            var linV = [0,1.0,0];
-            rigidBody.applyImpulse( linV );
-            that.canJump = false;
-          } //if
-        }; //jump
-
-        this.prepare = function( scene, physics, mvc ) {
-          scene.bindSceneObject( sceneObject );
-          physics.bindRigidBody( rigidBody );
-          rigidBody.setAngularFactor(0);
-          rigidBody.activate();
-          sceneObject.addEvent({
-            id: CubicVR.enums.event.TICK,
-            interval: 1.0/30.0,
-            properties: {
-            },
-            action: function( event ) {
-              var linV = rigidBody.getLinearVelocity();
-              
-              if (sceneObject.position[1] >= -0.5) {
-                  if ( mvc.isKeyPressed( kbd.KEY_D ) ) {
-                    linV[ 0 ] = Math.min( 5.0, linV[ 0 ] + 1.0 );
-                  }
-                  if ( mvc.isKeyPressed( kbd.KEY_A ) ) {
-                    linV[ 0 ] = Math.max( -10.0, linV[ 0 ] - 1.6 );
-                  }
-                  if ( mvc.isKeyPressed( kbd.KEY_W ) ) {
-                    linV[ 2 ] = Math.min( 1.0, linV[ 2 ] - 0.15 );
-                  }
-                  linV[ 0 ] -= linV[ 0 ] *.2;
-                  if (!rigidBody.isActive()) rigidBody.activate();
-                  rigidBody.setLinearVelocity( linV );
-              }
-
-              rigidBody.setCollisionFlags(CubicVR.enums.physics.collision_flags.NO_CONTACT_RESPONSE);            
-              var groundRay = physics.getRayHit(sceneObject.position,CubicVR.vec3.subtract(sceneObject.position,[0,1,0]),true);
-              rigidBody.setCollisionFlags(0);            
-
-              if (groundRay) {
-                  var groundDist = vec3.length(vec3.subtract(sceneObject.position,groundRay.position));
-                  if (groundRay && groundDist <= 0.2) {
-                      that.canJump = true;               
-                  } else {
-                      that.canJump = false;
-                  }
-              }
-              
-            }
-          });
-          sceneObject.scale = [ 0.05, 0.05, 0.05 ];
-          scene.bindSceneObject( sceneObject );
-        }; //prepare
-
-        this.update = function() {
-        }; //update
-
-        if ( options.physics && options.scene && options.mvc ) {
-          that.prepare( options.scene, options.physics, options.mvc );
-        }
-      }; //Player
-
-      var Platform = function( options ) {
-        options = options || {};
-        Object.defineProperty( this, "mesh", { get: function() { return mesh; } } );
-      }; //Platform
-
-      document.addEventListener( "DOMContentLoaded", function( e ) {
-        var gl = CubicVR.init();
-        var canvas = CubicVR.getCanvas();
-        if (!gl) {
-          alert("Sorry, no WebGL support.");
-          return;
-        } //if
-
-        var scene = new CubicVR.Scene(canvas.width, canvas.height, 80),
-            physics = new CubicVR.ScenePhysics(),
-            mvc = new CubicVR.MouseViewController(canvas, scene.camera);
-
-        scene.bindLight( new CubicVR.Light({
-          type: CubicVR.enums.light.type.AREA,
-          intensity: 0.9,
-          mapRes: 512,  // 4096 ? 8192 ? ;)
-          areaCeiling: 40,
-          areaFloor: -40,
-          areaAxis: [ -2, -2 ], // specified in degrees east/west north/south
-          distance: 5
-        }));
-        
-        CubicVR.setSoftShadows(true);
-
-        scene.setSkyBox( new CubicVR.SkyBox( { texture: "assets/images/space_skybox.jpg" } ) );
-
-        var light = new CubicVR.Light( "#light-simple-point" );
-        scene.bindLight(light);
-
-        var levelData = JSON.parse( document.getElementById( 'level1-data' ).text );
-        var levelMesh = new CubicVR.Mesh();
-        var levelCollision = new CubicVR.CollisionMap();
-
-        var transform = new CubicVR.Transform();
-        var platformMesh = CubicVR.primitives.box({
-            size: [ 1, 1, 1 ],
-            uvmapper: "#uv-stone",
-            material: "#material-stone"
-        });
-
-        for ( var i=0; i<5; ++i ) {
-          for ( var o=0; o<50; ++o ) {
-            if ( levelData[ i*50 + o ] ) { 
-              var tpos = [ i, 0, -o ];
-              transform.clearStack();
-              transform.translate( tpos );
-              levelMesh.booleanAdd( platformMesh, transform );
-              levelCollision.addShape({type:CubicVR.enums.collision.shape.BOX, size:[1,1,1], position:tpos });  // construct compound shape
-            } //if
-          } //for o
-        } //for i
-
-        levelMesh.triangulateQuads().calcNormals().compile();
-
-        var levelObject = new CubicVR.SceneObject( levelMesh );
-        levelObject.position[ 1 ] = -1;
-        
-        var rigidBody = new CubicVR.RigidBody( levelObject, {
-          type: CubicVR.enums.physics.body.GHOST,
-          blocker: true,
-          collision: levelCollision,
-          restitution: 0.0
-        });
-        physics.bindRigidBody( rigidBody );
-        scene.bindSceneObject( levelObject );
-
-// This activates even if you're just touching the side...
-/*
-        levelObject.addEvent({
-          id: CubicVR.enums.event.CONTACT_GHOST,
-          properties: {
-          },
-          action: function( event ) {
-            var properties = event.getEventProperties(),
-                contacts = properties.contacts;
-            player.canJump = true;
-          }
-        }); //addEvent
-*/
-
-        var player = new Player({
-          position: [ 0, 0, 0 ],
-          scene: scene,
-          physics: physics,
-          mvc: mvc
-        });
-        mvc.setEvents({
-          keyDown: function( ctx, mpos, keyCode, keyState ) {
-            if ( keyCode === kbd.SPACE ) {
-              player.jump();
-            } //if
-          } //keyDown
-        }); //setEvents
-
-        scene.camera.position = [ 0, .75, 1 ];
-        scene.camera.target = [ 0, 0, 0 ];
-        physics.setGravity( [ 0, -1, 0 ] );
-
-        CubicVR.addResizeable(scene);
-
-        var falling = false;
-
-        CubicVR.MainLoop(function(timer, gl) {
-          var lastSeconds = timer.getLastUpdateSeconds(),
-              seconds = timer.getSeconds();
-          physics.stepSimulation( lastSeconds );
-          physics.triggerEvents();
-          scene.runEvents( seconds );
-          var playerPos = player.sceneObject.position;
-          scene.camera.position = [
-            playerPos[ 0 ],
-            .5,
-            playerPos[ 2 ] + 1
-          ];
-
-          if ( playerPos[ 1 ] < -3 ) {
-            player.rigidBody.setPosition( [ 0, 0, 0 ] ); 
-            player.rigidBody.setLinearVelocity( [ 0, 0, 0] );
-            player.rigidBody.setAngularFactor(0);
-            player.rigidBody.setAngularVelocity( [0,0,0] );
-            player.rigidBody.setRotationEuler( [0,0,0] );
-            falling = false;
-          } else if ( playerPos[ 1 ] < -0.7 && !falling) {
-            player.rigidBody.setAngularFactor(1);
-            player.rigidBody.setAngularVelocity( [2.0*(Math.random()-0.5),2.0*(Math.random()-0.5),2.0*(Math.random()-0.5)] );
-            falling = true;
-          }
-
-          player.update();
-          light.position = player.sceneObject.position;
-          scene.camera.target = [
-            playerPos[ 0 ],
-            0,
-            playerPos[ 2 ]
-          ];
-          scene.updateShadows();
-          scene.render();
-        });
-      }, false );
-      })();
-    </script>
+    <script type='text/javascript' src="game/skyroads.js"></script>
+    <style>
+      #game-audio {
+        position: absolute;
+        z-index: 99999999;
+        top: 1px;
+        left: 1px;
+        display: block;
+      }
+      #audio-viz-1 {
+        position: absolute;
+        z-index: 99999999;
+        top: 50px;
+        left: 1px;
+        display: block;
+      }
+    </style>
   </head>
   <body>
+    <audio id="game-audio" controls>
+      <source src="assets/music/the-field-yesterday-and-today.oga" type="audio/ogg" />
+    </audio>
+    <canvas id="audio-viz-1" width="200" height="200"></canvas>
   </body>
 </html>
