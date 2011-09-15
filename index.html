@@ -5,8 +5,8 @@
     <script type="text/json" id="level1-data">
       [1,1,1,0,0,0,0,1,1,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,1,1,0,0,0,0,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,0,0,0,0,0,1,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,1]
     </script>
-    <script src="external/CubicVR.js/CubicVR.js" type="text/javascript"></script>
-    <script src="external/CubicVR.js/lib/ammo.js" type="text/javascript"></script>
+    <script src="external/CubicVR.js" type="text/javascript"></script>
+    <script src="external/ammo.js" type="text/javascript"></script>
     <script type="text/json" src="assets/objects/material-metalic.json" data-cubicvr="material" id="material-metalic"></script>
     <script type="text/json" src="assets/objects/material-stone.json" data-cubicvr="material" id="material-stone"></script>
     <script type="text/json" src="assets/objects/uv-metalic.json" data-cubicvr="uvmapper" id="uv-metalic"></script>
@@ -78,6 +78,7 @@
                 linV[ 2 ] = Math.min( 1.0, linV[ 2 ] - 0.15 );
               }
               linV[ 0 ] -= linV[ 0 ] *.2;
+              if (!rigidBody.isActive()) rigidBody.activate();
               rigidBody.setLinearVelocity( linV );
             }
           });
@@ -128,6 +129,10 @@
 
         var levelData = JSON.parse( document.getElementById( 'level1-data' ).text );
         var levelMesh = new CubicVR.Mesh();
+        var levelCollision = new CubicVR.CollisionMap();
+
+        var transform = new CubicVR.Transform();
+
         for ( var i=0; i<5; ++i ) {
           for ( var o=0; o<50; ++o ) {
             if ( levelData[ i*50 + o ] ) {
@@ -136,22 +141,25 @@
                 uvmapper: "#uv-stone",
                 material: "#material-stone"
               });
-              var transform = new CubicVR.Transform();
-              transform.translate( [ i, 0, -o ] );
+ 
+              var tpos = [ i, 0, -o ];
+              transform.clearStack();
+              transform.translate( tpos );
               levelMesh.booleanAdd( platformMesh, transform );
+              levelCollision.addShape({type:CubicVR.enums.collision.shape.BOX, size:[1,1,1], position:tpos });  // construct compound shape
             } //if
           } //for o
         } //for i
+
         levelMesh.triangulateQuads().calcNormals().compile();
+
         var levelObject = new CubicVR.SceneObject( levelMesh );
         levelObject.position[ 1 ] = -1;
+        
         var rigidBody = new CubicVR.RigidBody( levelObject, {
           type: CubicVR.enums.physics.body.GHOST,
           blocker: true,
-          collision: new CubicVR.CollisionMap({
-            type: CubicVR.enums.collision.shape.MESH,
-            mesh: levelMesh,
-          })
+          collision: levelCollision
         });
         physics.bindRigidBody( rigidBody );
         scene.bindSceneObject( levelObject );
