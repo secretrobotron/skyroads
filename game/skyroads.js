@@ -175,14 +175,16 @@
     function createPlatformMesh() {
       var material = new CubicVR.Material({
             textures: {
-              color: viz.getVizTexture( 'viz1' )
+              //color: viz.getVizTexture( 'viz1' )
+              color: new CubicVR.Texture('assets/images/concrete3.jpg')
             }
           }),
           mesh = new CubicVR.Mesh(),
           surfaceMesh = CubicVR.primitives.plane({
             material: new CubicVR.Material({
               textures: {
-                color: viz.getVizTexture( 'viz2' )
+                //color: viz.getVizTexture( 'viz2' )
+                color: new CubicVR.Texture('assets/images/metal6.jpg')
               }
             }),
             uvmapper: {
@@ -241,6 +243,7 @@
       distance: 5
     }));
 
+/*
     viz.generateVizTexture( "viz1", function( canvas, ctx, audio, fft, signal ) {
       var cw = canvas.width, ch = canvas.height;
           hw = cw/2, hh = ch/2;
@@ -273,7 +276,8 @@
         max = Math.round( max );
       }
     })());
-    
+*/  
+
     CubicVR.setSoftShadows(true);
 
     scene.setSkyBox( new CubicVR.SkyBox( { texture: "assets/images/space_skybox.jpg" } ) );
@@ -343,7 +347,7 @@
       var lastSeconds = timer.getLastUpdateSeconds(),
           seconds = timer.getSeconds();
 
-      viz.update();
+      //viz.update();
 
       physics.stepSimulation( lastSeconds );
       physics.triggerEvents();
